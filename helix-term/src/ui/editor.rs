@@ -580,72 +580,65 @@ impl EditorView {
 
         // Compute the individual info strings and add them to `right_side_text`.
 
-        // Diagnostics
-        let diags = doc.diagnostics().iter().fold((0, 0), |mut counts, diag| {
-            use helix_core::diagnostic::Severity;
-            match diag.severity {
-                Some(Severity::Warning) => counts.0 += 1,
-                Some(Severity::Error) | None => counts.1 += 1,
+        for id in &config.statusline {
+            match id.as_str() {
+                "diagnostics" => {
+                    let diags = doc.diagnostics().iter().fold((0, 0), |mut counts, diag| {
+                        use helix_core::diagnostic::Severity;
+                        match diag.severity {
+                            Some(Severity::Warning) => counts.0 += 1,
+                            Some(Severity::Error) | None => counts.1 += 1,
+                            _ => {}
+                        }
+                        counts
+                    });
+                    let (warnings, errors) = diags;
+                    let warning_style = theme.get("warning");
+                    let error_style = theme.get("error");
+                    for i in 0..2 {
+                        let (count, style) = match i {
+                            0 => (warnings, warning_style),
+                            1 => (errors, error_style),
+                            _ => unreachable!(),
+                        };
+                        if count == 0 {
+                            continue;
+                        }
+                        let style = base_style.patch(style);
+                        right_side_text
+                            .0
+                            .push(Span::styled(config.diagnostic.sign.to_string(), style));
+                        right_side_text
+                            .0
+                            .push(Span::styled(format!(" {} ", count), base_style));
+                    }
+                }
+                "selections" => {
+                    let sels_count = doc.selection(view.id).len();
+                    right_side_text.0.push(Span::styled(
+                        format!(
+                            " {} sel{} ",
+                            sels_count,
+                            if sels_count == 1 { "" } else { "s" }
+                        ),
+                        base_style,
+                    ));
+                }
+                "position" => {
+                    let pos = coords_at_pos(
+                        doc.text().slice(..),
+                        doc.selection(view.id)
+                            .primary()
+                            .cursor(doc.text().slice(..)),
+                    );
+                    right_side_text.0.push(Span::styled(
+                        format!(" {}:{} ", pos.row + 1, pos.col + 1), // Convert to 1-indexing.
+                        base_style,
+                    ));
+                }
                 _ => {}
             }
-            counts
-        });
-        let (warnings, errors) = diags;
-        let warning_style = theme.get("warning");
-        let error_style = theme.get("error");
-        for i in 0..2 {
-            let (count, style) = match i {
-                0 => (warnings, warning_style),
-                1 => (errors, error_style),
-                _ => unreachable!(),
-            };
-            if count == 0 {
-                continue;
-            }
-            let style = base_style.patch(style);
-            right_side_text
-                .0
-                .push(Span::styled(config.diagnostic.sign.to_string(), style));
-            right_side_text
-                .0
-                .push(Span::styled(format!(" {} ", count), base_style));
         }
-
-        // Selections
-        let sels_count = doc.selection(view.id).len();
-        right_side_text.0.push(Span::styled(
-            format!(
-                " {} sel{} ",
-                sels_count,
-                if sels_count == 1 { "" } else { "s" }
-            ),
-            base_style,
-        ));
-
-        // let indent_info = match doc.indent_style {
-        //     IndentStyle::Tabs => "tabs",
-        //     IndentStyle::Spaces(1) => "spaces:1",
-        //     IndentStyle::Spaces(2) => "spaces:2",
-        //     IndentStyle::Spaces(3) => "spaces:3",
-        //     IndentStyle::Spaces(4) => "spaces:4",
-        //     IndentStyle::Spaces(5) => "spaces:5",
-        //     IndentStyle::Spaces(6) => "spaces:6",
-        //     IndentStyle::Spaces(7) => "spaces:7",
-        //     IndentStyle::Spaces(8) => "spaces:8",
-        //     _ => "indent:ERROR",
-        // };
-
-        // Position
-        let pos = coords_at_pos(
-            doc.text().slice(..),
-            doc.selection(view.id)
-                .primary()
-                .cursor(doc.text().slice(..)),
-        );
-        right_side_text.0.push(Span::styled(
-            format!(" {}:{} ", pos.row + 1, pos.col + 1), // Convert to 1-indexing.
-            base_style,
-        ));
 
         // Render to the statusline.
         surface.set_spans(

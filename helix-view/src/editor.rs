@@ -123,6 +123,8 @@ pub struct Config {
     /// Set to `true` to override automatic detection of terminal truecolor support in the event of a false negative. Defaults to `false`.
     pub true_color: bool,
     pub diagnostic: DiagnosticConfig,
+    /// What components to show in the status line
+    pub statusline: Vec<String>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize)]
@@ -157,6 +159,11 @@ impl Default for Config {
             file_picker: FilePickerConfig::default(),
             true_color: false,
             diagnostic: DiagnosticConfig::default(),
+            statusline: vec![
+                "diagnostics".to_owned(),
+                "selections".to_owned(),
+                "position".to_owned(),
+            ],
         }
     }
 }
